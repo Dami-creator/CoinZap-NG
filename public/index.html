@@ -1,27 +1,51 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CoinZap NG</title>
-  <style>
-    body { font-family: Arial, sans-serif; margin:0; padding:0; background:#f5f5f5; text-align:center; }
-    header { background:#4CAF50; color:white; padding:20px; }
-    a.button { display:inline-block; margin:20px; padding:15px 30px; background:#4CAF50; color:white; text-decoration:none; border-radius:8px; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CoinZap NG</title>
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <header>
-    <h1>CoinZap NG</h1>
-    <p>King Tyburn</p>
-  </header>
+<h1>CoinZap NG</h1>
+<p>King Tyburn's Site</p>
 
-  <main>
-    <h2>Welcome to CoinZap NG</h2>
-    <a href="login.html" class="button">Login</a>
-    <a href="register.html" class="button">Register</a>
-    <br>
-    <a href="https://t.me/TyburnUK" class="button">Help / Contact</a>
-  </main>
+<div class="products">
+  <form action="/order" method="POST">
+    <h2>TikTok Coins</h2>
+    <input type="hidden" name="type" value="TikTok Coins">
+    <input type="text" name="amount" placeholder="Enter amount" required>
+    <input type="text" name="customerName" placeholder="Your Name" required>
+    <input type="text" name="customerPhone" placeholder="Phone Number" required>
+    <button type="submit">Buy Now</button>
+  </form>
+
+  <form action="/order" method="POST">
+    <h2>Airtime</h2>
+    <input type="hidden" name="type" value="Airtime">
+    <input type="text" name="amount" placeholder="Amount" required>
+    <input type="text" name="customerName" placeholder="Your Name" required>
+    <input type="text" name="customerPhone" placeholder="Phone Number" required>
+    <button type="submit">Buy Now</button>
+  </form>
+
+  <form action="/order" method="POST">
+    <h2>Data Bundles</h2>
+    <input type="hidden" name="type" value="Data Bundle">
+    <input type="text" name="amount" placeholder="Amount" required>
+    <input type="text" name="customerName" placeholder="Your Name" required>
+    <input type="text" name="customerPhone" placeholder="Phone Number" required>
+    <button type="submit">Buy Now</button>
+  </form>
+</div>
+
+<div class="payment-info">
+  <h3>Send Payment To:</h3>
+  <p>Account Number: 2035470845</p>
+  <p>Bank: Kuda MFB</p>
+  <p>Account Name: Damilola Fadiora</p>
+</div>
+
+<a href="https://t.me/TyburnUK" class="contact">Contact / Help</a>
 </body>
 </html>
