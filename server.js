@@ -1,190 +1,196 @@
-require("dotenv").config();
 const express = require("express");
+const bodyParser = require("body-parser");
+const session = require("express-session");
+const bcrypt = require("bcryptjs");
 const axios = require("axios");
 const fs = require("fs-extra");
-const path = require("path");
+const { v4: uuidv4 } = require("uuid");
 
 const app = express();
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+const PORT = process.env.PORT || 3000;
 
-/* ================= FRONTEND ================= */
-app.get("/", (req, res) => {
-  res.send(`
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<title>CoinZap NG</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<script src="https://js.paystack.co/v1/inline.js"></script>
-<style>
-body { margin:0;font-family:Segoe UI,sans-serif; background:linear-gradient(135deg,#0f2027,#203a43,#2c5364); color:#fff;}
-.container {max-width:420px;margin:40px auto;background:#0d1117;padding:25px;border-radius:18px;box-shadow:0 15px 35px rgba(0,0,0,.6);}
-h1{text-align:center;margin-bottom:5px;}
-p{text-align:center;opacity:.85;}
-select,input,button{width:100%;padding:14px;margin-top:12px;border-radius:10px;border:none;outline:none;font-size:15px;}
-select,input{background:#161b22;color:#fff;}
-button{background:linear-gradient(90deg,#00e0ff,#00ffa2);color:#000;font-weight:bold;cursor:pointer;margin-top:18px;}
-button:hover{opacity:.9;}
-#success{margin-top:18px;text-align:center;font-weight:bold;color:#00ffa2;}
-.footer{text-align:center;margin-top:15px;font-size:12px;opacity:.6;}
-.bank-info{text-align:center;margin-top:15px;font-size:13px;opacity:.85;}
-.contact{text-align:center;margin-top:10px;font-size:13px;opacity:.85;}
-</style>
-</head>
-<body>
-<div class="container">
-<h1>⚡ CoinZap NG</h1>
-<p>Official site by <strong>King Tyburn</strong></p>
-<p>TikTok Coins • Airtime • Data Bundles</p>
+/* ===================== CONFIG ===================== */
+const ADMIN_KEY = "Tinubu2026"; // your admin password
+const TELEGRAM_HELP = "https://t.me/TyburnUK"; // Help link
 
-<select id="service" onchange="updatePlaceholders()">
-<option value="">Select Service</option>
-<option value="tiktok">TikTok Coins</option>
-<option value="airtime">Airtime</option>
-<option value="data">Data Bundle</option>
-</select>
+app.use(bodyParser.urlencoded({ extended: true }));
+app.use(bodyParser.json());
 
-<input id="field1" placeholder="Username / Phone Number">
-<input id="field2" placeholder="Coins / Network / Data Plan">
-<input id="amount" type="number" placeholder="Amount (₦)">
+app.use(
+  session({
+    secret: "coinzap_secret",
+    resave: false,
+    saveUninitialized: false
+  })
+);
 
-<button onclick="pay()">Pay Now</button>
-<div id="success"></div>
+app.use(express.static("public"));
 
-<div class="bank-info">
-  Bank: Kuda MFB <br>
-  Account Name: Damilola Fadiora <br>
-  Account Number: 2035470845
-</div>
+/* ===================== FILE PATHS ===================== */
+const USERS_FILE = "./data/users.json";
+const WALLETS_FILE = "./data/wallets.json";
+const ORDERS_FILE = "./data/orders.json";
 
-<div class="contact">
-  For issues, contact me on Telegram: <strong>@KingTyburn</strong>
-</div>
-
-<div class="footer">© 2026 CoinZap NG — Owned by King Tyburn</div>
-</div>
-
-<script>
-function updatePlaceholders(){
-  const service=document.getElementById("service").value;
-  const f1=document.getElementById("field1");
-  const f2=document.getElementById("field2");
-  if(service==="tiktok"){f1.placeholder="TikTok Username";f2.placeholder="Coin Package (e.g. 700 Coins)";}
-  else if(service==="airtime"){f1.placeholder="Phone Number";f2.placeholder="Network (MTN, Airtel, Glo)";}
-  else if(service==="data"){f1.placeholder="Phone Number";f2.placeholder="Data Plan (e.g. 5GB)";}
+/* ===================== HELPERS ===================== */
+function read(file) {
+  if (!fs.existsSync(file)) return [];
+  return fs.readJsonSync(file);
 }
 
-function pay(){
-  const service=document.getElementById("service").value;
-  const f1=document.getElementById("field1").value;
-  const f2=document.getElementById("field2").value;
-  const amount=document.getElementById("amount").value;
-  if(!service||!f1||!f2||!amount){alert("Please fill all fields");return;}
-  const handler=PaystackPop.setup({
-    key:"pk_test_6bdf1c2ad7c596a35b09e1024394bce7a4ff210a",
-    email:"customer@coinzap.ng",
-    amount:amount*100,
-    ref:"CZ_"+Math.floor(Math.random()*1000000000),
-    callback:function(response){
-      const order=\`
-Service: \${service}
-Detail1: \${f1}
-Detail2: \${f2}
-Amount: ₦\${amount}
-Reference: \${response.reference}
-Status: PAID
-\`;
-      fetch("/verify-payment",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({reference:response.reference,service,f1,f2,amount,order})});
-      document.getElementById("success").innerText=service==="airtime"?"Airtime purchased successfully ✅":service==="data"?"Data bundle purchased successfully ✅":"TikTok Coins purchased successfully ✅";
+function write(file, data) {
+  fs.writeJsonSync(file, data, { spaces: 2 });
+}
+
+async function sendTelegram(msg) {
+  if (!process.env.TG_BOT_TOKEN || !process.env.TG_CHAT_ID) return;
+  await axios.post(
+    `https://api.telegram.org/bot${process.env.TG_BOT_TOKEN}/sendMessage`,
+    { chat_id: process.env.TG_CHAT_ID, text: msg }
+  );
+}
+
+function auth(req, res, next) {
+  if (!req.session.user) return res.redirect("/login.html");
+  next();
+}
+
+/* ===================== AUTH ===================== */
+app.post("/register", async (req, res) => {
+  const { email, password } = req.body;
+  const users = read(USERS_FILE);
+
+  if (users.find(u => u.email === email))
+    return res.send("User already exists");
+
+  const hash = await bcrypt.hash(password, 10);
+  const id = uuidv4();
+
+  users.push({ id, email, password: hash });
+  write(USERS_FILE, users);
+
+  const wallets = read(WALLETS_FILE);
+  wallets.push({ userId: id, balance: 0 });
+  write(WALLETS_FILE, wallets);
+
+  res.redirect("/login.html");
+});
+
+app.post("/login", async (req, res) => {
+  const { email, password } = req.body;
+  const users = read(USERS_FILE);
+  const user = users.find(u => u.email === email);
+
+  if (!user || !(await bcrypt.compare(password, user.password)))
+    return res.send("Invalid login");
+
+  req.session.user = user;
+  res.redirect("/dashboard.html");
+});
+
+app.get("/logout", (req, res) => {
+  req.session.destroy(() => res.redirect("/login.html"));
+});
+
+/* ===================== WALLET ===================== */
+app.get("/wallet", auth, (req, res) => {
+  const wallets = read(WALLETS_FILE);
+  const wallet = wallets.find(w => w.userId === req.session.user.id);
+  res.json(wallet);
+});
+
+app.post("/fund-wallet", auth, async (req, res) => {
+  const amount = Number(req.body.amount);
+  const ref = uuidv4();
+
+  await axios.post(
+    "https://api.paystack.co/transaction/initialize",
+    {
+      email: req.session.user.email,
+      amount: amount * 100,
+      reference: ref,
+      callback_url: `${process.env.BASE_URL}/verify-wallet?ref=${ref}`
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${process.env.PAYSTACK_SECRET}`
+      }
     }
-  });
-  handler.openIframe();
-}
-</script>
-</body>
-</html>
-`);
+  ).then(r => res.redirect(r.data.data.authorization_url));
 });
 
-/* ================= BACKEND ================= */
-app.post("/verify-payment", async (req, res) => {
-  const { reference, order, service, f1, f2, amount } = req.body;
-  try {
-    const verify = await axios.get(`https://api.paystack.co/transaction/verify/${reference}`,{
-      headers:{Authorization:`Bearer ${process.env.PAYSTACK_SECRET_KEY}`}
-    });
-    if(verify.data.data.status==="success"){
-      // Send Telegram notification
-      await axios.post(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`,{
-        chat_id:process.env.TELEGRAM_CHAT_ID,
-        text:`🛒 CoinZap NG Order\n\n${order}\n\nUser can contact me: @KingTyburn`
-      });
-      // Save to orders.json
-      const ordersPath=path.join(__dirname,"orders.json");
-      let orders=await fs.readJson(ordersPath).catch(()=>[]);
-      orders.unshift({reference,service,f1,f2,amount,status:"PAID"}); // newest first
-      await fs.writeJson(ordersPath,orders,{spaces:2});
-      return res.json({success:true});
-    }
-    res.json({success:false});
-  }catch(err){res.status(500).json({error:"Verification failed"});}
-});
+app.get("/verify-wallet", async (req, res) => {
+  const ref = req.query.ref;
 
-/* ================= ADMIN PANEL ================= */
-app.get("/admin",(req,res)=>{
-  const password=req.query.password||"";
-  if(password!==process.env.ADMIN_PASSWORD) return res.send("Invalid password");
-  const ordersPath=path.join(__dirname,"orders.json");
-  const orders=fs.readJsonSync(ordersPath);
-  let rows="";
-  orders.forEach((o,i)=>{
-    const bg=o.status==="SENT"?"#2e7d32":"#1976d2"; // green for SENT, blue for PAID
-    rows+=`<tr style="background-color:${bg}; color:#fff;">
-    <td>${o.reference}</td>
-    <td>${o.service}</td>
-    <td>${o.f1}</td>
-    <td>${o.f2}</td>
-    <td>₦${o.amount}</td>
-    <td id="status-${i}">${o.status}</td>
-    <td><button onclick="markSent(${i})">Mark as Sent</button></td>
-    </tr>`;
-  });
-  res.send(`
-<html>
-<head><title>Admin - CoinZap NG</title></head>
-<body>
-<h2>Admin Panel - CoinZap NG</h2>
-<table border="1" cellpadding="5">
-<tr><th>Reference</th><th>Service</th><th>Detail1</th><th>Detail2</th><th>Amount</th><th>Status</th><th>Action</th></tr>
-${rows}
-</table>
-<script>
-function markSent(index){
-  fetch("/mark-sent",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({index})})
-  .then(res=>res.json()).then(d=>{
-    if(d.success){document.getElementById("status-"+index).innerText="SENT";}
-  });
-}
-</script>
-</body></html>
-  `);
-});
+  const v = await axios.get(
+    `https://api.paystack.co/transaction/verify/${ref}`,
+    { headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET}` } }
+  );
 
-/* ================= MARK AS SENT ================= */
-app.post("/mark-sent", async (req,res)=>{
-  const {index}=req.body;
-  const ordersPath=path.join(__dirname,"orders.json");
-  let orders=await fs.readJson(ordersPath);
-  if(orders[index]){
-    orders[index].status="SENT";
-    await fs.writeJson(ordersPath,orders,{spaces:2});
-    return res.json({success:true});
+  if (v.data.data.status === "success") {
+    const wallets = read(WALLETS_FILE);
+    const wallet = wallets.find(w => w.userId === req.session.user.id);
+    wallet.balance += v.data.data.amount / 100;
+    write(WALLETS_FILE, wallets);
+
+    await sendTelegram(
+      `💰 Wallet funded\nUser: ${req.session.user.email}\n₦${v.data.data.amount / 100}`
+    );
   }
-  res.json({success:false});
+
+  res.redirect("/dashboard.html");
 });
 
-/* ================= SERVER ================= */
-const PORT=process.env.PORT||3000;
-app.listen(PORT,()=>console.log(`CoinZap NG running on port ${PORT}`));
+/* ===================== ORDERS ===================== */
+app.post("/order", auth, async (req, res) => {
+  const { service, detail, amount } = req.body;
+  const wallets = read(WALLETS_FILE);
+  const wallet = wallets.find(w => w.userId === req.session.user.id);
+
+  if (wallet.balance < amount)
+    return res.send("Insufficient balance");
+
+  wallet.balance -= Number(amount);
+  write(WALLETS_FILE, wallets);
+
+  const orders = read(ORDERS_FILE);
+  const order = {
+    id: uuidv4(),
+    user: req.session.user.email,
+    service,
+    detail,
+    amount,
+    status: "PAID"
+  };
+  orders.push(order);
+  write(ORDERS_FILE, orders);
+
+  await sendTelegram(
+    `🟢 New Order\n${service}\n${detail}\n₦${amount}\nUser: ${order.user}`
+  );
+
+  res.redirect("/dashboard.html");
+});
+
+/* ===================== ADMIN ===================== */
+app.get("/admin", (req, res) => {
+  if (req.query.key !== ADMIN_KEY) return res.send("Unauthorized");
+
+  const orders = read(ORDERS_FILE);
+  res.json(orders);
+});
+
+app.post("/admin/mark", (req, res) => {
+  if (req.query.key !== ADMIN_KEY) return res.send("Unauthorized");
+
+  const orders = read(ORDERS_FILE);
+  const order = orders.find(o => o.id === req.body.id);
+  if (order) order.status = "SENT";
+  write(ORDERS_FILE, orders);
+
+  res.send("OK");
+});
+
+/* ===================== START ===================== */
+app.listen(PORT, () => {
+  console.log("CoinZap NG running");
+});
