@@ -1,0 +1,18 @@
+{
+  "name": "coinzap-ng",
+  "version": "1.0.0",
+  "description": "CoinZap NG - TikTok coins, airtime, data bundles",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "axios": "^1.7.0",
+    "bcryptjs": "^2.4.3",
+    "express": "^4.18.2",
+    "express-session": "^1.17.3",
+    "fs-extra": "^11.1.1",
+    "uuid": "^9.0.0",
+    "body-parser": "^1.20.2"
+  }
+}
