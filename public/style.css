@@ -1,0 +1,21 @@
+body { font-family: Arial, sans-serif; text-align: center; background: #f0f4f8; }
+h1 { color: #4a00e0; }
+.products { display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; margin-top: 20px; }
+form { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); width: 200px; }
+input { width: 100%; padding: 10px; margin: 5px 0; border-radius: 5px; border: 1px solid #ccc; }
+button { background: #4a00e0; color: white; border: none; padding: 10px; border-radius: 5px; cursor: pointer; width: 100%; }
+button:hover { background: #6a0ce8; }
+.contact { display: block; margin-top: 20px; color: #4a00e0; text-decoration: none; font-weight: bold; }
+.contact:hover { text-decoration: underline; }
+.payment-info {
+  margin-top: 20px;
+  background: #fff3cd;
+  padding: 15px;
+  border-radius: 10px;
+  color: #856404;
+  width: 300px;
+  margin-left: auto;
+  margin-right: auto;
+  text-align: center;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
