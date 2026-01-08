@@ -29,11 +29,14 @@ button{background:linear-gradient(90deg,#00e0ff,#00ffa2);color:#000;font-weight:
 button:hover{opacity:.9;}
 #success{margin-top:18px;text-align:center;font-weight:bold;color:#00ffa2;}
 .footer{text-align:center;margin-top:15px;font-size:12px;opacity:.6;}
+.bank-info{text-align:center;margin-top:15px;font-size:13px;opacity:.85;}
+.contact{text-align:center;margin-top:10px;font-size:13px;opacity:.85;}
 </style>
 </head>
 <body>
 <div class="container">
 <h1>⚡ CoinZap NG</h1>
+<p>Official site by <strong>King Tyburn</strong></p>
 <p>TikTok Coins • Airtime • Data Bundles</p>
 
 <select id="service" onchange="updatePlaceholders()">
@@ -49,7 +52,18 @@ button:hover{opacity:.9;}
 
 <button onclick="pay()">Pay Now</button>
 <div id="success"></div>
-<div class="footer">Secure payments powered by Paystack</div>
+
+<div class="bank-info">
+  Bank: Kuda MFB <br>
+  Account Name: Damilola Fadiora <br>
+  Account Number: 2035470845
+</div>
+
+<div class="contact">
+  For issues, contact me on Telegram: <strong>@KingTyburn</strong>
+</div>
+
+<div class="footer">© 2026 CoinZap NG — Owned by King Tyburn</div>
 </div>
 
 <script>
@@ -94,7 +108,7 @@ Status: PAID
 `);
 });
 
-/* ================= BACKEND: Payment Verification + Telegram ================= */
+/* ================= BACKEND ================= */
 app.post("/verify-payment", async (req, res) => {
   const { reference, order, service, f1, f2, amount } = req.body;
   try {
@@ -102,15 +116,15 @@ app.post("/verify-payment", async (req, res) => {
       headers:{Authorization:`Bearer ${process.env.PAYSTACK_SECRET_KEY}`}
     });
     if(verify.data.data.status==="success"){
-      // Send Telegram
+      // Send Telegram notification
       await axios.post(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`,{
         chat_id:process.env.TELEGRAM_CHAT_ID,
-        text:`🛒 CoinZap NG Order\n\n${order}`
+        text:`🛒 CoinZap NG Order\n\n${order}\n\nUser can contact me: @KingTyburn`
       });
       // Save to orders.json
       const ordersPath=path.join(__dirname,"orders.json");
       let orders=await fs.readJson(ordersPath).catch(()=>[]);
-      orders.push({reference,service,f1,f2,amount,status:"PAID"});
+      orders.unshift({reference,service,f1,f2,amount,status:"PAID"}); // newest first
       await fs.writeJson(ordersPath,orders,{spaces:2});
       return res.json({success:true});
     }
@@ -121,12 +135,13 @@ app.post("/verify-payment", async (req, res) => {
 /* ================= ADMIN PANEL ================= */
 app.get("/admin",(req,res)=>{
   const password=req.query.password||"";
-  if(password!==process.env.ADMIN_PASSWORD)return res.send("Invalid password");
+  if(password!==process.env.ADMIN_PASSWORD) return res.send("Invalid password");
   const ordersPath=path.join(__dirname,"orders.json");
   const orders=fs.readJsonSync(ordersPath);
   let rows="";
   orders.forEach((o,i)=>{
-    rows+=`<tr>
+    const bg=o.status==="SENT"?"#2e7d32":"#1976d2"; // green for SENT, blue for PAID
+    rows+=`<tr style="background-color:${bg}; color:#fff;">
     <td>${o.reference}</td>
     <td>${o.service}</td>
     <td>${o.f1}</td>
@@ -137,7 +152,8 @@ app.get("/admin",(req,res)=>{
     </tr>`;
   });
   res.send(`
-<html><head><title>Admin - CoinZap NG</title></head>
+<html>
+<head><title>Admin - CoinZap NG</title></head>
 <body>
 <h2>Admin Panel - CoinZap NG</h2>
 <table border="1" cellpadding="5">
@@ -171,4 +187,4 @@ app.post("/mark-sent", async (req,res)=>{
 
 /* ================= SERVER ================= */
 const PORT=process.env.PORT||3000;
-app.listen(PORT,()=>console.log("CoinZap NG running on port "+PORT));
+app.listen(PORT,()=>console.log(`CoinZap NG running on port ${PORT}`));
